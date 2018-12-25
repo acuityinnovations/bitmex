@@ -1,7 +1,6 @@
 defmodule Bitmex.WS do
   @moduledoc """
   BitMEX WebSocket client.
-
   Behind the scenes, this module uses :websocket_client erlang libray.
   """
 
@@ -14,8 +13,7 @@ defmodule Bitmex.WS do
       @api_secret Application.get_env(:bitmex, :api_secret)
       @fsm_name {:local, __MODULE__}
       @test_mode Application.get_env(:bitmex, :test_mode)
-      @base "wss://" <> (@test_mode && "testnet" || "www") <>
-            ".bitmex.com/realtime"
+      @base "wss://" <> ((@test_mode && "testnet") || "www") <> ".bitmex.com/realtime"
       @ping_interval Application.get_env(:bitmex, :ping_interval, 5_000)
 
       ## API
@@ -52,20 +50,33 @@ defmodule Bitmex.WS do
         subscription = args[:subscribe] || ["orderBookL2:XBTUSD"]
         auth_subscription = args[:auth_subscribe] || []
         ping_interval = args[:ping_interval] || @ping_interval
-        {:once, %{subscribe: subscription, auth_subscribe: auth_subscription,
-                  ping_interval: ping_interval}}
+
+        {:once,
+         %{
+           subscribe: subscription,
+           auth_subscribe: auth_subscription,
+           ping_interval: ping_interval
+         }}
       end
 
-      def onconnect(_ws_req, %{subscribe: subscription,
-                               auth_subscribe: auth_subscription,
-                               ping_interval: ping_interval} = state) do
+      def onconnect(
+            _ws_req,
+            %{
+              subscribe: subscription,
+              auth_subscribe: auth_subscription,
+              ping_interval: ping_interval
+            } = state
+          ) do
         info("#{__MODULE__} connected")
-        if match?([_|_], subscription) do
+
+        if match?([_ | _], subscription) do
           subscribe(self(), subscription)
         end
-        if match?([_|_], auth_subscription) do
+
+        if match?([_ | _], auth_subscription) do
           authenticate(self())
         end
+
         {:ok, state, ping_interval}
       end
 
@@ -75,7 +86,7 @@ defmodule Bitmex.WS do
       end
 
       def ondisconnect(reason, state) do
-        warn("#{__MODULE__} disconnected: #{inspect reason}. Reconnecting")
+        warn("#{__MODULE__} disconnected: #{inspect(reason)}. Reconnecting")
         {:reconnect, state}
       end
 
@@ -83,36 +94,39 @@ defmodule Bitmex.WS do
         {:ok, state}
       end
 
-      def websocket_handle(msg, _conn_state,
-                           %{auth_subscribe: auth_subscription} = state) do
+      def websocket_handle(msg, _conn_state, %{auth_subscribe: auth_subscription} = state) do
         with {:text, text} <- msg,
-             {:ok, resp}   <- Poison.Parser.parse(text) do
+             {:ok, resp} <- Poison.Parser.parse(text) do
           case resp do
             %{"request" => %{"op" => "authKey"}, "success" => true} ->
               subscribe(self(), auth_subscription)
+
             _ ->
               handle_response(resp)
           end
         else
           e ->
-            warn("#{__MODULE__} received unexpected response: #{inspect e}")
+            warn("#{__MODULE__} received unexpected response: #{inspect(e)}")
         end
+
         {:ok, state}
       end
 
       def websocket_info(msg, _conn_state, state) do
-        warn("#{__MODULE__} received unexpected erlang msg: #{inspect msg}")
+        warn("#{__MODULE__} received unexpected erlang msg: #{inspect(msg)}")
         {:ok, state}
       end
 
       def websocket_terminate(reason, _conn_state, state) do
-        warn("#{__MODULE__} closed in state #{inspect state} " <>
-             "with reason #{inspect reason}")
+        warn(
+          "#{__MODULE__} closed in state #{inspect(state)} " <> "with reason #{inspect(reason)}"
+        )
+
         :ok
       end
 
       def handle_response(resp) do
-        info("#{__MODULE__} received response: #{inspect resp}")
+        info("#{__MODULE__} received response: #{inspect(resp)}")
       end
 
       defoverridable Module.definitions_in(__MODULE__)
