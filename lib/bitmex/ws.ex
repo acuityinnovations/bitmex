@@ -47,16 +47,14 @@ defmodule Bitmex.WS do
       ## Callbacks
 
       def init(args) do
-        subscription = args[:subscribe] || ["orderBookL2:XBTUSD"]
-        auth_subscription = args[:auth_subscribe] || []
-        ping_interval = args[:ping_interval] || @ping_interval
+        state =
+          Map.merge(args, %{
+            subscribe: args[:subscribe] || ["orderBookL2:XBTUSD"],
+            auth_subscribe: args[:auth_subscribe] || [],
+            ping_interval: args[:ping_interval] || @ping_interval
+          })
 
-        {:once,
-         %{
-           subscribe: subscription,
-           auth_subscribe: auth_subscription,
-           ping_interval: ping_interval
-         }}
+        {:once, state}
       end
 
       def onconnect(
@@ -102,7 +100,7 @@ defmodule Bitmex.WS do
               subscribe(self(), auth_subscription)
 
             _ ->
-              handle_response(resp)
+              handle_response(resp, state)
           end
         else
           e ->
@@ -125,7 +123,7 @@ defmodule Bitmex.WS do
         :ok
       end
 
-      def handle_response(resp) do
+      def handle_response(resp, _state) do
         info("#{__MODULE__} received response: #{inspect(resp)}")
       end
 
